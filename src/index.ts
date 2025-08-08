@@ -15,32 +15,30 @@ app.use(
 const CONCURRENCY = 3;
 
 let browser: Browser | null = null;
-const pagePool: Page[] = [];
-const busyPages = new Set<Page>();
+let page: Page;
+let busy = false;
 
 async function initBrowser() {
-  browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
+  browser = await chromium.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-dev-shm-usage"],
+  });
   for (let i = 0; i < CONCURRENCY; i++) {
-    const page = await browser.newPage();
-    pagePool.push(page);
+    page = await browser.newPage();
   }
   console.log(`Initialized browser with ${CONCURRENCY} pages`);
 }
 
 async function acquirePage(): Promise<Page> {
-  while (true) {
-    for (const page of pagePool) {
-      if (!busyPages.has(page)) {
-        busyPages.add(page);
-        return page;
-      }
-    }
+  while (busy) {
     await new Promise((r) => setTimeout(r, 100));
   }
+
+  return page;
 }
 
 function releasePage(page: Page) {
-  busyPages.delete(page);
+  busy = false;
 }
 
 app.post("/screenshot", async (c) => {
@@ -187,6 +185,10 @@ process.on("SIGINT", async () => {
   if (browser) await browser.close();
   process.exit(0);
 });
+
+process.on("exit", code => console.log("Process exiting with code", code));
+process.on("uncaughtException", err => console.error("Uncaught exception", err));
+process.on("unhandledRejection", err => console.error("Unhandled promise rejection", err));
 
 export default {
   port: 3001,
