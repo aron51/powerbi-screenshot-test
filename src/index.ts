@@ -4,7 +4,13 @@ import { Browser, chromium, Page } from "playwright";
 
 const app = new Hono();
 
-app.use("*", cors());
+app.use(
+  "*",
+  cors({
+    origin: "http://localhost:5173",
+    allowMethods: ["GET", "POST", "OPTIONS"],
+  })
+);
 
 const CONCURRENCY = 3;
 
