@@ -58,18 +58,31 @@ app.post("/screenshot", async (c) => {
     return c.text("Missing required parameters", 400);
   }
 
+  console.log("RECEIVED REQUEST");
+
   const scale = 2; // simulate devicePixelRatio = 2
 
   const page = await acquirePage();
 
   try {
     // Set viewport scaled by the zoom factor
-    await page.setViewportSize({ width: width * scale, height: height * scale });
+    await page.setViewportSize({
+      width: width * scale,
+      height: height * scale,
+    });
     await page.goto("about:blank");
 
     // Evaluate script inside page to create iframe and wait for dashboard load event
     await page.evaluate(
-      ({ embedUrl, accessToken, dashboardId, workspaceId, width, height, scale }) => {
+      ({
+        embedUrl,
+        accessToken,
+        dashboardId,
+        workspaceId,
+        width,
+        height,
+        scale,
+      }) => {
         return new Promise<void>((resolve, reject) => {
           let startTime = performance.now();
 
@@ -83,9 +96,15 @@ app.post("/screenshot", async (c) => {
                 console.log(`Loading finished in ${duration} ms`);
                 window.removeEventListener("message", messageHandler);
                 resolve();
-              } else if (event.data.url === "/dashboards/defaultId/events/error") {
+              } else if (
+                event.data.url === "/dashboards/defaultId/events/error"
+              ) {
                 window.removeEventListener("message", messageHandler);
-                reject(new Error(event.data.body?.message || "Unknown Power BI error"));
+                reject(
+                  new Error(
+                    event.data.body?.message || "Unknown Power BI error"
+                  )
+                );
               }
             } catch (err) {
               console.error("Error handling message", err);
@@ -132,7 +151,9 @@ app.post("/screenshot", async (c) => {
       { embedUrl, accessToken, dashboardId, workspaceId, width, height, scale }
     );
 
-    await new Promise(r => setTimeout(r, 5_000));
+    await new Promise((r) => setTimeout(r, 30_000));
+
+    console.log("GOT SCREENSHOT");
 
     // Take screenshot clipped to scaled viewport size
     const screenshotBuffer = await page.screenshot({
@@ -147,7 +168,10 @@ app.post("/screenshot", async (c) => {
     });
   } catch (error) {
     console.error("Screenshot error:", error);
-    return c.text("Failed to take screenshot: " + (error as Error).message, 500);
+    return c.text(
+      "Failed to take screenshot: " + (error as Error).message,
+      500
+    );
   } finally {
     releasePage(page);
   }
