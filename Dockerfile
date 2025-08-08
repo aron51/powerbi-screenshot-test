@@ -12,6 +12,8 @@ COPY package.json bun.lock ./
 
 RUN bun install --production
 
+RUN bunx playwright install --with-deps
+
 COPY . .
 
 EXPOSE 3001
