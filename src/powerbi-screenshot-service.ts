@@ -14,6 +14,7 @@ export class PowerBIScreenshotService {
   private browser: Browser | null = null;
   private page: Page | null = null;
   private queue: RequestQueue;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
     this.queue = new RequestQueue();
@@ -23,12 +24,18 @@ export class PowerBIScreenshotService {
     if (this.browser) {
       return;
     }
-    this.browser = await chromium.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-dev-shm-usage"],
-    });
 
-    this.page = await this.browser.newPage();
+    if (!this.initPromise) {
+      this.initPromise = (async () => {
+        this.browser = await chromium.launch({
+          headless: true,
+          args: ["--no-sandbox", "--disable-dev-shm-usage"],
+        });
+        this.page = await this.browser.newPage();
+      })();
+    }
+
+    await this.initPromise;
   }
 
   public async takeScreenshot(params: ScreenshotParams): Promise<Buffer> {
