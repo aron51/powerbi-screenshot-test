@@ -7,10 +7,10 @@ const service = new PowerBIScreenshotService();
 
 app.use(
   "*",
-  cors({
-    origin: "http://localhost:5173",
-    allowMethods: ["GET", "POST", "OPTIONS"],
-  })
+  cors(
+    // origin: "http://localhost:5173",
+    // allowMethods: ["GET", "POST", "OPTIONS"],
+  )
 );
 
 app.post("/screenshot", async (c) => {
