@@ -1,5 +1,7 @@
 type Fn<T> = () => Promise<T>;
 
+const limit = 3;
+
 export class RequestQueue {
   private queue: {
     fn: Fn<any>;
@@ -7,30 +9,33 @@ export class RequestQueue {
     reject: (err: any) => void;
   }[] = [];
 
-  private running = false;
+  private running = 0;
 
   push<T>(fn: Fn<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       this.queue.push({ fn, resolve, reject });
-      if (!this.running) {
-        this.running = true;
-        void this.runNext();
-      }
+      this.processQueue();
     });
   }
 
-  private async runNext(): Promise<void> {
-    while (this.queue.length > 0) {
-      const { fn, resolve, reject } = this.queue[0];
-      try {
-        const result = await fn();
-        resolve(result);
-      } catch (err) {
-        reject(err);
-      }
-      this.queue.shift();
+  private async processQueue(): Promise<void> {
+    if (this.running === limit || this.queue.length === 0) {
+      return;
     }
-    this.running = false;
+
+    const current = this.queue[0];
+
+    this.running++;
+
+    current
+      .fn()
+      .then((result) => current.resolve(result))
+      .catch((err) => current.reject(err))
+      .finally(() => {
+        this.running--;
+        this.queue.shift();
+        this.processQueue();
+      });
   }
 
   get length(): number {

@@ -12,7 +12,6 @@ export type ScreenshotParams = {
 
 export class PowerBIScreenshotService {
   private browser: Browser | null = null;
-  private page: Page | null = null;
   private queue: RequestQueue;
   private initPromise: Promise<void> | null = null;
 
@@ -31,7 +30,6 @@ export class PowerBIScreenshotService {
           headless: true,
           args: ["--no-sandbox", "--disable-dev-shm-usage"],
         });
-        this.page = await this.browser.newPage();
       })();
     }
 
@@ -44,8 +42,11 @@ export class PowerBIScreenshotService {
 
   private async _takeScreenshot(params: ScreenshotParams): Promise<Buffer> {
     await this.init();
-    if (!this.page) {
-      throw new Error("Missing page");
+
+    console.log('taking screenshot');
+
+    if (!this.browser) {
+      throw new Error("Missing browser!");
     }
 
     const { accessToken, embedUrl, dashboardId, workspaceId, width, height } =
@@ -53,13 +54,15 @@ export class PowerBIScreenshotService {
 
     const scale = 2;
 
-    await this.page.setViewportSize({
+    const page = await this.browser.newPage();
+
+    await page.setViewportSize({
       width: width * scale,
       height: height * scale,
     });
-    await this.page.goto("about:blank");
+    await page.goto("about:blank");
 
-    await this.page.evaluate(
+    await page.evaluate(
       ({
         embedUrl,
         accessToken,
@@ -70,16 +73,12 @@ export class PowerBIScreenshotService {
         scale,
       }) => {
         return new Promise<void>((resolve, reject) => {
-          let startTime = performance.now();
-
           function messageHandler(event: MessageEvent) {
             if (event.source !== iframe.contentWindow) return;
             try {
               if (!event.data || typeof event.data !== "object") return;
 
               if (event.data.url === "/dashboards/defaultId/events/loaded") {
-                const duration = performance.now() - startTime;
-                console.log(`Loading finished in ${duration} ms`);
                 window.removeEventListener("message", messageHandler);
                 resolve();
               } else if (
@@ -123,11 +122,6 @@ export class PowerBIScreenshotService {
               },
             };
             iframe.contentWindow?.postMessage(loadDashboardMsg, "*");
-
-            setTimeout(() => {
-              const setTokenMsg = { action: "setAccessToken", accessToken };
-              iframe.contentWindow?.postMessage(setTokenMsg, "*");
-            }, 1000);
           };
         });
       },
@@ -136,7 +130,7 @@ export class PowerBIScreenshotService {
 
     await new Promise((r) => setTimeout(r, 30_000));
 
-    return await this.page.screenshot({
+    return await page.screenshot({
       clip: { x: 0, y: 0, width: width * scale, height: height * scale },
       type: "png",
       fullPage: false,
@@ -147,7 +141,6 @@ export class PowerBIScreenshotService {
     if (this.browser) {
       await this.browser.close();
       this.browser = null;
-      this.page = null;
     }
   }
 }
