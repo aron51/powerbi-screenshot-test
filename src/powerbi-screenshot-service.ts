@@ -36,7 +36,7 @@ export class PowerBIScreenshotService {
   }
 
   private async _takeScreenshot(params: ScreenshotParams): Promise<Buffer> {
-    this.init();
+    await this.init();
     if (!this.page) {
       throw new Error("Missing page");
     }
